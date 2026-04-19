@@ -2,88 +2,158 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>DARK SMM PANEL</title>
+<title>DARK SMM PANEL PRO</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
 body {
-    background: black;
-    color: #00f0ff;
+    margin:0;
     font-family: Orbitron;
-    text-align: center;
+    background: radial-gradient(circle at top,#020617,#000);
+    color:#00f0ff;
+}
+
+/* HEADER */
+header {
+    text-align:center;
+    padding:20px;
+    border-bottom:1px solid #00f0ff55;
+    box-shadow:0 0 20px #00f0ff33;
 }
 
 h1 {
-    text-shadow: 0 0 20px #00f0ff;
+    text-shadow:0 0 20px #00f0ff;
 }
 
-.card {
-    background: #020617;
-    border: 1px solid #00f0ff55;
-    border-radius: 10px;
-    padding: 15px;
-    margin: 15px;
+/* CONTROLES */
+.top {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    padding:10px;
 }
 
-input {
-    width: 80%;
-    padding: 8px;
-    margin: 5px;
-    background: black;
-    border: 1px solid #00f0ff;
-    color: #00f0ff;
+input, select {
+    padding:10px;
+    background:black;
+    border:1px solid #00f0ff55;
+    color:#00f0ff;
+    border-radius:8px;
 }
 
+/* BOTONES */
 button {
-    padding: 10px;
-    background: black;
-    border: 1px solid #00f0ff;
-    color: #00f0ff;
-    cursor: pointer;
+    padding:10px 15px;
+    border:none;
+    background:linear-gradient(90deg,#00f0ff,#0088ff);
+    color:white;
+    border-radius:8px;
+    cursor:pointer;
+    transition:.3s;
 }
 
 button:hover {
-    background: #00f0ff;
-    color: black;
+    transform:scale(1.05);
+    box-shadow:0 0 15px #00f0ff;
+}
+
+/* GRID */
+#servicios {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:20px;
+    padding:20px;
+}
+
+/* CARD */
+.card {
+    background:#020617;
+    border:1px solid #00f0ff33;
+    padding:15px;
+    border-radius:12px;
+    transition:.3s;
+}
+
+.card:hover {
+    transform:translateY(-5px);
+    box-shadow:0 0 20px #00f0ff55;
+}
+
+/* LOADER */
+.loader {
+    text-align:center;
+    margin-top:30px;
+    display:none;
 }
 </style>
 </head>
 
 <body>
 
-<h1>🎮 DARK SMM PANEL</h1>
+<header>
+<h1>🎮 DARK SMM PANEL PRO</h1>
+</header>
 
-<button onclick="cargar()">Cargar Servicios</button>
+<div class="top">
+<button onclick="cargar()">⚡ Cargar Servicios</button>
+<input id="buscador" placeholder="🔍 Buscar..." oninput="filtrar()">
+<select id="categoria" onchange="filtrar()">
+<option value="">Todas</option>
+</select>
+</div>
+
+<div class="loader" id="loader">🔥 Cargando...</div>
 
 <div id="servicios"></div>
 
 <script>
-const API_KEY = "PON_AQUI_TU_API_KEY";
-const API_URL = "https://socialmentorify.com/api/v2";
+const API_KEY = "TU_API_KEY_AQUI";
+const API_URL = "https://api.allorigins.win/raw?url=https://socialmentorify.com/api/v2";
 
-async function cargar() {
-    const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            key: API_KEY,
-            action: "services"
+let serviciosGlobal = [];
+
+/* 🔥 CARGAR SERVICIOS */
+async function cargar(){
+    loader.style.display="block";
+
+    const res = await fetch(API_URL,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+            key:API_KEY,
+            action:"services"
         })
     });
 
     const data = await res.json();
-    const cont = document.getElementById("servicios");
-    cont.innerHTML = "";
+    loader.style.display="none";
 
-    data.slice(0, 20).forEach(s => {
-        const precio = (parseFloat(s.rate) * 2).toFixed(2);
+    serviciosGlobal = data;
 
-        cont.innerHTML += `
+    // llenar categorías
+    let cats = [...new Set(data.map(s=>s.category))];
+    categoria.innerHTML = '<option value="">Todas</option>';
+    cats.forEach(c=>{
+        categoria.innerHTML += `<option>${c}</option>`;
+    });
+
+    render(data);
+}
+
+/* 🎮 RENDER */
+function render(data){
+    servicios.innerHTML="";
+
+    data.forEach(s=>{
+        let precio = (parseFloat(s.rate)*2).toFixed(2);
+
+        servicios.innerHTML += `
         <div class="card">
             <h3>${s.name}</h3>
             <p>💰 $${precio}</p>
-            <p>Min: ${s.min} | Max: ${s.max}</p>
+            <p>📊 Min: ${s.min} | Max: ${s.max}</p>
 
             <input placeholder="Link" id="l-${s.service}">
             <input placeholder="Cantidad" id="q-${s.service}">
@@ -94,24 +164,40 @@ async function cargar() {
     });
 }
 
-async function comprar(id) {
-    const link = document.getElementById("l-"+id).value;
-    const qty = document.getElementById("q-"+id).value;
+/* 🔍 FILTRO */
+function filtrar(){
+    let texto = buscador.value.toLowerCase();
+    let cat = categoria.value;
 
-    const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            key: API_KEY,
-            action: "add",
-            service: id,
+    let filtrados = serviciosGlobal.filter(s=>{
+        return s.name.toLowerCase().includes(texto) &&
+               (cat==="" || s.category===cat);
+    });
+
+    render(filtrados);
+}
+
+/* 💰 COMPRAR */
+async function comprar(id){
+    let link = document.getElementById("l-"+id).value;
+    let qty = document.getElementById("q-"+id).value;
+
+    if(!link || !qty) return alert("Completa datos");
+
+    const res = await fetch(API_URL,{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+            key:API_KEY,
+            action:"add",
+            service:id,
             link,
-            quantity: qty
+            quantity:qty
         })
     });
 
     const data = await res.json();
-    alert("Orden: " + (data.order || "error"));
+    alert("Orden: "+ (data.order || "Error"));
 }
 </script>
 
