@@ -11,24 +11,21 @@ body{
     font-family:Arial;
     background:#000814;
     color:white;
+    text-align:center;
 }
 
 h1{
-    text-align:center;
+    margin-top:30px;
     color:#00f0ff;
     text-shadow:0 0 20px #00f0ff;
 }
 
-.container{
-    padding:20px;
-}
-
-input, select{
+input{
     padding:10px;
     margin:5px;
     border-radius:10px;
     border:none;
-    width:250px;
+    width:220px;
 }
 
 button{
@@ -39,13 +36,16 @@ button{
     background:#00f0ff;
     color:black;
     font-weight:bold;
-    cursor:pointer;
+}
+
+#panel{
+    display:none;
 }
 
 .card{
     background:#001d3d;
     padding:20px;
-    margin:15px 0;
+    margin:20px;
     border-radius:15px;
 }
 </style>
@@ -55,9 +55,6 @@ button{
 
 <h1>🎮 DARK SMM PANEL PRO</h1>
 
-<div class="container">
-
-<!-- LOGIN -->
 <div id="loginBox">
     <h2>Login / Registro</h2>
     <input id="email" placeholder="Correo"><br>
@@ -67,157 +64,75 @@ button{
     <button onclick="login()">Entrar</button>
 </div>
 
-<!-- PANEL -->
-<div id="panel" style="display:none">
-
+<div id="panel">
     <h2>🔥 Bienvenido</h2>
     <p id="userEmail"></p>
 
     <div class="card">
-        💰 Saldo API: <span id="saldo">...</span> $
-        <br>
-        <button onclick="getBalance()">Actualizar saldo</button>
-    </div>
-
-    <div class="card">
-        <h3>📦 Servicios</h3>
-        <button onclick="loadServices()">Cargar servicios</button><br>
-        <select id="services"></select>
-    </div>
-
-    <div class="card">
-        <h3>🚀 Crear Orden</h3>
-        <input id="link" placeholder="Link"><br>
-        <input id="cantidad" type="number" placeholder="Cantidad"><br>
-        <button onclick="createOrder()">Enviar Orden</button>
-        <p id="result"></p>
+        ✔ Login funcionando correctamente
     </div>
 
     <button onclick="logout()">Cerrar sesión</button>
-
-</div>
-
 </div>
 
 <script type="module">
 
-// 🔥 FIREBASE
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
-import { 
-  getAuth, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  onAuthStateChanged, 
-  signOut 
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 
-// 🔥 CONFIG (TUYA)
+// 🔥 CONFIG CORRECTA (LA TUYA)
 const firebaseConfig = {
   apiKey: "AIzaSyBi4VDFWk3z5qRmBypf4IF-ax27ops9en0",
   authDomain: "dark-smm-22f11.firebaseapp.com",
   projectId: "dark-smm-22f11",
-  storageBucket: "dark-smm-22f11.firebasestorage.app",
+  storageBucket: "dark-smm-22f11.appspot.com",
   messagingSenderId: "1023226798495",
   appId: "1:1023226798495:web:0de746c9614f9eaed8ddaa"
 };
 
+
+// INIT
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 
-// 🔥 TU API SMM
-const API_KEY = "07b9bf684d2cc61abce32acba4a6c704c10cc99e340b59f2a45b99962595f8da";
-const API_URL = "https://socialmentorify.com/api/v2";
-
-
 // REGISTER
 window.register = async () => {
-  await createUserWithEmailAndPassword(auth, email.value, pass.value);
+  try{
+    await createUserWithEmailAndPassword(auth, email.value, pass.value);
+    alert("Registrado");
+  }catch(e){
+    alert(e.message);
+  }
 };
+
 
 // LOGIN
 window.login = async () => {
-  await signInWithEmailAndPassword(auth, email.value, pass.value);
+  try{
+    await signInWithEmailAndPassword(auth, email.value, pass.value);
+  }catch(e){
+    alert(e.message);
+  }
 };
 
+
 // SESSION
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, (user)=>{
   if(user){
     loginBox.style.display="none";
     panel.style.display="block";
     userEmail.innerText=user.email;
-    getBalance();
   }else{
     loginBox.style.display="block";
     panel.style.display="none";
   }
 });
 
+
 // LOGOUT
-window.logout = () => signOut(auth);
-
-
-// 💰 SALDO
-window.getBalance = async () => {
-  const res = await fetch(API_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      key: API_KEY,
-      action:"balance"
-    })
-  });
-
-  const data = await res.json();
-  saldo.innerText = data.balance;
-};
-
-
-// 📦 SERVICIOS
-window.loadServices = async () => {
-  const res = await fetch(API_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      key: API_KEY,
-      action:"services"
-    })
-  });
-
-  const data = await res.json();
-
-  services.innerHTML="";
-
-  data.slice(0,50).forEach(s=>{
-    let op = document.createElement("option");
-    op.value = s.service;
-    op.text = `${s.name} - $${s.rate}`;
-    services.appendChild(op);
-  });
-};
-
-
-// 🚀 ORDEN
-window.createOrder = async () => {
-
-  const res = await fetch(API_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      key: API_KEY,
-      action:"add",
-      service: services.value,
-      link: link.value,
-      quantity: cantidad.value
-    })
-  });
-
-  const data = await res.json();
-
-  result.innerText = "Orden creada ID: " + data.order;
-};
+window.logout = ()=> signOut(auth);
 
 </script>
 
