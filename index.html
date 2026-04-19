@@ -2,280 +2,163 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DARK SMM PANEL PRO</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-
 <style>
-body {
+body{
     margin:0;
-    font-family: Orbitron;
-    background: radial-gradient(circle at top,#020617,#000);
-    color:#00f0ff;
+    font-family:Arial;
+    background:#000814;
+    color:white;
+    text-align:center;
 }
 
 /* HEADER */
-header {
-    text-align:center;
-    padding:20px;
-    border-bottom:1px solid #00f0ff55;
-    box-shadow:0 0 20px #00f0ff33;
+h1{
+    margin-top:30px;
+    color:#00f0ff;
+    text-shadow:0 0 20px #00f0ff;
 }
 
-h1 { text-shadow:0 0 20px #00f0ff; }
-
 /* LOGIN */
-#loginBox {
-    text-align:center;
+#loginBox{
     margin-top:50px;
 }
 
-input, select {
+input{
     padding:10px;
     margin:5px;
-    background:black;
-    border:1px solid #00f0ff55;
-    color:#00f0ff;
-    border-radius:8px;
-}
-
-/* BOTONES */
-button {
-    padding:10px 15px;
+    border-radius:10px;
     border:none;
-    background:linear-gradient(90deg,#00f0ff,#0088ff);
-    color:white;
-    border-radius:8px;
-    cursor:pointer;
-    transition:.3s;
+    width:200px;
 }
 
-button:hover {
-    transform:scale(1.05);
+button{
+    padding:10px 20px;
+    margin:5px;
+    border:none;
+    border-radius:10px;
+    background:#00f0ff;
+    color:black;
+    font-weight:bold;
+    cursor:pointer;
     box-shadow:0 0 15px #00f0ff;
 }
 
 /* PANEL */
-#panel { display:none; }
-
-/* TOP */
-.top {
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:center;
-    gap:10px;
-    padding:10px;
+#panel{
+    display:none;
+    margin-top:40px;
 }
 
-/* GRID */
-#servicios {
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-    gap:20px;
+.card{
+    background:#001d3d;
+    margin:20px;
     padding:20px;
-}
-
-/* CARD */
-.card {
-    background:#020617;
-    border:1px solid #00f0ff33;
-    padding:15px;
-    border-radius:12px;
-    transition:.3s;
-}
-
-.card:hover {
-    transform:translateY(-5px);
-    box-shadow:0 0 20px #00f0ff55;
-}
-
-.msg {
-    text-align:center;
-    margin-top:20px;
+    border-radius:15px;
+    box-shadow:0 0 20px #00f0ff33;
 }
 </style>
 </head>
 
 <body>
 
-<header>
 <h1>🎮 DARK SMM PANEL PRO</h1>
-</header>
 
 <!-- LOGIN -->
 <div id="loginBox">
-<h2>Login / Registro</h2>
-<input id="email" placeholder="Correo">
-<input id="pass" type="password" placeholder="Contraseña"><br>
-<button onclick="register()">Registrarse</button>
-<button onclick="login()">Entrar</button>
+    <h2>Login / Registro</h2>
+    <input id="email" placeholder="Correo"><br>
+    <input id="pass" type="password" placeholder="Contraseña"><br>
+
+    <button onclick="register()">Registrarse</button>
+    <button onclick="login()">Entrar</button>
 </div>
 
 <!-- PANEL -->
 <div id="panel">
+    <h2>🔥 Bienvenido</h2>
+    <p id="userEmail"></p>
 
-<div class="top">
-<h3>💰 Saldo: $<span id="saldo">0</span></h3>
-<button onclick="cargar()">⚡ Cargar Servicios</button>
-<input id="buscador" placeholder="🔍 Buscar..." oninput="filtrar()">
-<select id="categoria" onchange="filtrar()">
-<option value="">Todas</option>
-</select>
+    <div class="card">
+        💰 Saldo: <span id="saldo">100</span>$
+    </div>
+
+    <button onclick="logout()">Cerrar sesión</button>
 </div>
 
-<div class="msg" id="estado"></div>
-<div id="servicios"></div>
-
-</div>
-
-<!-- FIREBASE -->
 <script type="module">
 
+// 🔥 IMPORTS FIREBASE
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-/* CONFIG TUYA */
+// 🔥 CONFIG TUYA
 const firebaseConfig = {
   apiKey: "AIzaSyBi4VDFWk3z5qRmBypf4IF-ax27ops9en0",
   authDomain: "dark-smm-22f11.firebaseapp.com",
   projectId: "dark-smm-22f11",
   storageBucket: "dark-smm-22f11.firebasestorage.app",
   messagingSenderId: "1023226798495",
-  appId: "1:1023226798495:web:40c9529f90e12babd8ddaa"
+  appId: "1:1023226798495:web:40c9529f90e12babd8ddaa",
+  measurementId: "G-VN94FNGEV6"
 };
 
+// 🔥 INIT
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* GLOBAL */
-let userGlobal = null;
-let serviciosGlobal = [];
-
-/* REGISTER */
+// 🔥 REGISTER
 window.register = async () => {
-  const user = await createUserWithEmailAndPassword(auth, email.value, pass.value);
+  try {
+    const user = await createUserWithEmailAndPassword(auth, email.value, pass.value);
 
-  await setDoc(doc(db, "users", user.user.uid), {
-    email: email.value,
-    saldo: 100
-  });
+    await setDoc(doc(db, "users", user.user.uid), {
+      email: email.value,
+      saldo: 100
+    });
 
-  alert("Registrado 🔥");
+    alert("Registrado 🔥");
+
+  } catch (e) {
+    alert(e.message);
+  }
 };
 
-/* LOGIN */
+// 🔥 LOGIN
 window.login = async () => {
-  const user = await signInWithEmailAndPassword(auth, email.value, pass.value);
+  try {
+    await signInWithEmailAndPassword(auth, email.value, pass.value);
+  } catch (e) {
+    alert(e.message);
+  }
+};
 
-  const ref = doc(db, "users", user.user.uid);
-  const snap = await getDoc(ref);
-
-  if (snap.exists()) {
-    userGlobal = {
-      uid: user.user.uid,
-      ...snap.data()
-    };
-
-    saldo.innerText = userGlobal.saldo;
-
+// 🔥 DETECTAR LOGIN
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
     loginBox.style.display = "none";
     panel.style.display = "block";
+
+    userEmail.innerText = user.email;
+
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      saldo.innerText = snap.data().saldo;
+    }
+
+  } else {
+    loginBox.style.display = "block";
+    panel.style.display = "none";
   }
-};
+});
 
-/* SERVICIOS */
-window.cargar = async () => {
-  estado.innerText = "🔥 Cargando...";
-
-  const res = await fetch("/api/services");
-  const data = await res.json();
-
-  serviciosGlobal = data;
-
-  let cats = [...new Set(data.map(s=>s.category))];
-  categoria.innerHTML = '<option value="">Todas</option>';
-  cats.forEach(c=>{
-    categoria.innerHTML += `<option>${c}</option>`;
-  });
-
-  render(data);
-  estado.innerText = "✅ Listo";
-};
-
-/* RENDER */
-function render(data){
-  servicios.innerHTML = "";
-
-  data.forEach(s=>{
-    let precio = parseFloat(s.rate).toFixed(2);
-
-    servicios.innerHTML += `
-    <div class="card">
-      <h3>${s.name}</h3>
-      <p>💰 $${precio}</p>
-
-      <input placeholder="Link" id="l-${s.service}">
-      <input placeholder="Cantidad" id="q-${s.service}">
-
-      <button onclick="comprar(${s.service}, ${precio})">Comprar</button>
-    </div>
-    `;
-  });
-}
-
-/* FILTRO */
-window.filtrar = () => {
-  let texto = buscador.value.toLowerCase();
-  let cat = categoria.value;
-
-  let f = serviciosGlobal.filter(s=>{
-    return s.name.toLowerCase().includes(texto) &&
-           (cat==="" || s.category===cat);
-  });
-
-  render(f);
-};
-
-/* COMPRAR */
-window.comprar = async (id, precio) => {
-  let link = document.getElementById("l-"+id).value;
-  let qty = document.getElementById("q-"+id).value;
-
-  if(!link || !qty) return alert("Completa datos");
-
-  const total = precio * qty;
-
-  if(userGlobal.saldo < total){
-    return alert("Saldo insuficiente ❌");
-  }
-
-  estado.innerText = "⏳ Procesando...";
-
-  const res = await fetch("/api/order",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({
-      service:id,
-      link,
-      quantity:qty
-    })
-  });
-
-  const data = await res.json();
-
-  /* DESCONTAR SALDO */
-  const ref = doc(db, "users", userGlobal.uid);
-
-  await updateDoc(ref, {
-    saldo: userGlobal.saldo - total
-  });
-
-  userGlobal.saldo -= total;
-  saldo.innerText = userGlobal.saldo;
-
-  estado.innerText = "✅ Orden creada 🔥";
+// 🔥 LOGOUT
+window.logout = () => {
+  signOut(auth);
 };
 
 </script>
