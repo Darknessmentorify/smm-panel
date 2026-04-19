@@ -81,11 +81,11 @@ button:hover {
     box-shadow:0 0 20px #00f0ff55;
 }
 
-/* LOADER */
-.loader {
+/* MENSAJES */
+.msg {
     text-align:center;
-    margin-top:30px;
-    display:none;
+    margin-top:20px;
+    font-weight:bold;
 }
 </style>
 </head>
@@ -104,42 +104,71 @@ button:hover {
 </select>
 </div>
 
-<div class="loader" id="loader">🔥 Cargando...</div>
+<div class="msg" id="estado"></div>
 
 <div id="servicios"></div>
 
 <script>
 const API_KEY = "TU_API_KEY_AQUI";
-const API_URL = "https://api.allorigins.win/raw?url=https://socialmentorify.com/api/v2";
+
+/* 🔥 LISTA DE PROXIES (AUTO CAMBIO) */
+const PROXIES = [
+    "https://corsproxy.io/?",
+    "https://api.allorigins.win/raw?url=",
+    "https://proxy.cors.sh/"
+];
 
 let serviciosGlobal = [];
 
+/* 🔥 FUNCION FETCH CON FALLBACK */
+async function fetchConProxy(data) {
+    for (let proxy of PROXIES) {
+        try {
+            const res = await fetch(proxy + "https://socialmentorify.com/api/v2", {
+                method:"POST",
+                headers:{ "Content-Type":"application/json" },
+                body:JSON.stringify(data)
+            });
+
+            const json = await res.json();
+
+            if (json && (Array.isArray(json) || json.order || json.balance)) {
+                return json;
+            }
+
+        } catch(e) {
+            console.log("Proxy falló:", proxy);
+        }
+    }
+
+    throw new Error("Todos los proxies fallaron");
+}
+
 /* 🔥 CARGAR SERVICIOS */
 async function cargar(){
-    loader.style.display="block";
+    estado.innerText = "🔥 Cargando servicios...";
 
-    const res = await fetch(API_URL,{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({
+    try {
+        const data = await fetchConProxy({
             key:API_KEY,
             action:"services"
-        })
-    });
+        });
 
-    const data = await res.json();
-    loader.style.display="none";
+        serviciosGlobal = data;
 
-    serviciosGlobal = data;
+        // categorías
+        let cats = [...new Set(data.map(s=>s.category))];
+        categoria.innerHTML = '<option value="">Todas</option>';
+        cats.forEach(c=>{
+            categoria.innerHTML += `<option>${c}</option>`;
+        });
 
-    // llenar categorías
-    let cats = [...new Set(data.map(s=>s.category))];
-    categoria.innerHTML = '<option value="">Todas</option>';
-    cats.forEach(c=>{
-        categoria.innerHTML += `<option>${c}</option>`;
-    });
+        render(data);
+        estado.innerText = "✅ Servicios cargados";
 
-    render(data);
+    } catch(e) {
+        estado.innerText = "❌ Error: API bloqueada (GitHub limitación)";
+    }
 }
 
 /* 🎮 RENDER */
@@ -184,20 +213,22 @@ async function comprar(id){
 
     if(!link || !qty) return alert("Completa datos");
 
-    const res = await fetch(API_URL,{
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({
+    estado.innerText = "⏳ Procesando compra...";
+
+    try {
+        const data = await fetchConProxy({
             key:API_KEY,
             action:"add",
             service:id,
             link,
             quantity:qty
-        })
-    });
+        });
 
-    const data = await res.json();
-    alert("Orden: "+ (data.order || "Error"));
+        estado.innerText = "✅ Orden creada: " + data.order;
+
+    } catch(e) {
+        estado.innerText = "❌ Error al comprar";
+    }
 }
 </script>
 
