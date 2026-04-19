@@ -22,9 +22,7 @@ header {
     box-shadow:0 0 20px #00f0ff33;
 }
 
-h1 {
-    text-shadow:0 0 20px #00f0ff;
-}
+h1 { text-shadow:0 0 20px #00f0ff; }
 
 /* LOGIN */
 #loginBox {
@@ -32,7 +30,7 @@ h1 {
     margin-top:50px;
 }
 
-input {
+input, select {
     padding:10px;
     margin:5px;
     background:black;
@@ -58,11 +56,9 @@ button:hover {
 }
 
 /* PANEL */
-#panel {
-    display:none;
-}
+#panel { display:none; }
 
-/* TOP BAR */
+/* TOP */
 .top {
     display:flex;
     flex-wrap:wrap;
@@ -132,146 +128,156 @@ button:hover {
 
 </div>
 
-<script>
-let user = null;
+<!-- FIREBASE -->
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* CONFIG TUYA */
+const firebaseConfig = {
+  apiKey: "AIzaSyBi4VDFWk3z5qRmBypf4IF-ax27ops9en0",
+  authDomain: "dark-smm-22f11.firebaseapp.com",
+  projectId: "dark-smm-22f11",
+  storageBucket: "dark-smm-22f11.firebasestorage.app",
+  messagingSenderId: "1023226798495",
+  appId: "1:1023226798495:web:40c9529f90e12babd8ddaa"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+/* GLOBAL */
+let userGlobal = null;
 let serviciosGlobal = [];
 
 /* REGISTER */
-async function register(){
-  await fetch("/api/register",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({
-      email: email.value,
-      password: pass.value
-    })
+window.register = async () => {
+  const user = await createUserWithEmailAndPassword(auth, email.value, pass.value);
+
+  await setDoc(doc(db, "users", user.user.uid), {
+    email: email.value,
+    saldo: 100
   });
 
   alert("Registrado 🔥");
-}
+};
 
 /* LOGIN */
-async function login(){
-  const res = await fetch("/api/login",{
+window.login = async () => {
+  const user = await signInWithEmailAndPassword(auth, email.value, pass.value);
+
+  const ref = doc(db, "users", user.user.uid);
+  const snap = await getDoc(ref);
+
+  if (snap.exists()) {
+    userGlobal = {
+      uid: user.user.uid,
+      ...snap.data()
+    };
+
+    saldo.innerText = userGlobal.saldo;
+
+    loginBox.style.display = "none";
+    panel.style.display = "block";
+  }
+};
+
+/* SERVICIOS */
+window.cargar = async () => {
+  estado.innerText = "🔥 Cargando...";
+
+  const res = await fetch("/api/services");
+  const data = await res.json();
+
+  serviciosGlobal = data;
+
+  let cats = [...new Set(data.map(s=>s.category))];
+  categoria.innerHTML = '<option value="">Todas</option>';
+  cats.forEach(c=>{
+    categoria.innerHTML += `<option>${c}</option>`;
+  });
+
+  render(data);
+  estado.innerText = "✅ Listo";
+};
+
+/* RENDER */
+function render(data){
+  servicios.innerHTML = "";
+
+  data.forEach(s=>{
+    let precio = parseFloat(s.rate).toFixed(2);
+
+    servicios.innerHTML += `
+    <div class="card">
+      <h3>${s.name}</h3>
+      <p>💰 $${precio}</p>
+
+      <input placeholder="Link" id="l-${s.service}">
+      <input placeholder="Cantidad" id="q-${s.service}">
+
+      <button onclick="comprar(${s.service}, ${precio})">Comprar</button>
+    </div>
+    `;
+  });
+}
+
+/* FILTRO */
+window.filtrar = () => {
+  let texto = buscador.value.toLowerCase();
+  let cat = categoria.value;
+
+  let f = serviciosGlobal.filter(s=>{
+    return s.name.toLowerCase().includes(texto) &&
+           (cat==="" || s.category===cat);
+  });
+
+  render(f);
+};
+
+/* COMPRAR */
+window.comprar = async (id, precio) => {
+  let link = document.getElementById("l-"+id).value;
+  let qty = document.getElementById("q-"+id).value;
+
+  if(!link || !qty) return alert("Completa datos");
+
+  const total = precio * qty;
+
+  if(userGlobal.saldo < total){
+    return alert("Saldo insuficiente ❌");
+  }
+
+  estado.innerText = "⏳ Procesando...";
+
+  const res = await fetch("/api/order",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify({
-      email: email.value,
-      password: pass.value
+      service:id,
+      link,
+      quantity:qty
     })
   });
 
   const data = await res.json();
 
-  if(data.error){
-    return alert(data.error);
-  }
+  /* DESCONTAR SALDO */
+  const ref = doc(db, "users", userGlobal.uid);
 
-  user = data;
+  await updateDoc(ref, {
+    saldo: userGlobal.saldo - total
+  });
 
-  saldo.innerText = data.saldo;
+  userGlobal.saldo -= total;
+  saldo.innerText = userGlobal.saldo;
 
-  loginBox.style.display="none";
-  panel.style.display="block";
-}
+  estado.innerText = "✅ Orden creada 🔥";
+};
 
-/* CARGAR SERVICIOS */
-async function cargar(){
-    estado.innerText = "🔥 Cargando servicios...";
-
-    try {
-        const res = await fetch("/api/services");
-        const data = await res.json();
-
-        serviciosGlobal = data;
-
-        let cats = [...new Set(data.map(s=>s.category))];
-        categoria.innerHTML = '<option value="">Todas</option>';
-        cats.forEach(c=>{
-            categoria.innerHTML += `<option>${c}</option>`;
-        });
-
-        render(data);
-        estado.innerText = "✅ Servicios cargados";
-
-    } catch(e) {
-        estado.innerText = "❌ Error cargando servicios";
-    }
-}
-
-/* RENDER */
-function render(data){
-    servicios.innerHTML="";
-
-    data.forEach(s=>{
-        let precio = parseFloat(s.rate).toFixed(2);
-
-        servicios.innerHTML += `
-        <div class="card">
-            <h3>${s.name}</h3>
-            <p>💰 $${precio}</p>
-            <p>📊 Min: ${s.min} | Max: ${s.max}</p>
-
-            <input placeholder="Link" id="l-${s.service}">
-            <input placeholder="Cantidad" id="q-${s.service}">
-
-            <button onclick="comprar(${s.service}, ${precio})">Comprar</button>
-        </div>
-        `;
-    });
-}
-
-/* FILTRO */
-function filtrar(){
-    let texto = buscador.value.toLowerCase();
-    let cat = categoria.value;
-
-    let filtrados = serviciosGlobal.filter(s=>{
-        return s.name.toLowerCase().includes(texto) &&
-               (cat==="" || s.category===cat);
-    });
-
-    render(filtrados);
-}
-
-/* COMPRAR */
-async function comprar(id, precio){
-    let link = document.getElementById("l-"+id).value;
-    let qty = document.getElementById("q-"+id).value;
-
-    if(!link || !qty) return alert("Completa datos");
-
-    estado.innerText = "⏳ Procesando...";
-
-    const total = precio * qty;
-
-    try {
-        const res = await fetch("/api/order",{
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body: JSON.stringify({
-                email: user.email,
-                service:id,
-                link,
-                quantity:qty,
-                price: total
-            })
-        });
-
-        const data = await res.json();
-
-        if(data.error){
-            return estado.innerText = "❌ " + data.error;
-        }
-
-        saldo.innerText = data.saldo;
-
-        estado.innerText = "✅ Orden creada 🔥";
-
-    } catch(e){
-        estado.innerText = "❌ Error";
-    }
-}
 </script>
 
 </body>
