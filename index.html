@@ -14,16 +14,10 @@ body{
     text-align:center;
 }
 
-/* HEADER */
 h1{
     margin-top:30px;
     color:#00f0ff;
     text-shadow:0 0 20px #00f0ff;
-}
-
-/* LOGIN */
-#loginBox{
-    margin-top:50px;
 }
 
 input{
@@ -31,7 +25,7 @@ input{
     margin:5px;
     border-radius:10px;
     border:none;
-    width:200px;
+    width:220px;
 }
 
 button{
@@ -46,10 +40,8 @@ button{
     box-shadow:0 0 15px #00f0ff;
 }
 
-/* PANEL */
 #panel{
     display:none;
-    margin-top:40px;
 }
 
 .card{
@@ -78,47 +70,63 @@ button{
 
 <!-- PANEL -->
 <div id="panel">
+
     <h2>🔥 Bienvenido</h2>
     <p id="userEmail"></p>
 
     <div class="card">
-        💰 Saldo: <span id="saldo">100</span>$
+        💰 Saldo API: <span id="saldoApi">...</span> $
+    </div>
+
+    <div class="card">
+        <h3>📦 Servicios</h3>
+        <select id="services" style="width:250px;"></select>
+    </div>
+
+    <div class="card">
+        <h3>🚀 Crear Orden</h3>
+        <input id="link" placeholder="Link"><br>
+        <input id="qty" type="number" placeholder="Cantidad"><br>
+        <button onclick="crearOrden()">Enviar Orden</button>
+        <p id="orderResult"></p>
     </div>
 
     <button onclick="logout()">Cerrar sesión</button>
+
 </div>
 
 <script type="module">
 
-// 🔥 IMPORTS FIREBASE
+// 🔥 FIREBASE IMPORTS
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// 🔥 CONFIG TUYA
+
+// ⚠️ PON TU CONFIG AQUÍ
 const firebaseConfig = {
-  apiKey: "AIzaSyBi4VDFWk3z5qRmBypf4IF-ax27ops9en0",
-  authDomain: "dark-smm-22f11.firebaseapp.com",
-  projectId: "dark-smm-22f11",
-  storageBucket: "dark-smm-22f11.firebasestorage.app",
-  messagingSenderId: "1023226798495",
-  appId: "1:1023226798495:web:40c9529f90e12babd8ddaa",
-  measurementId: "G-VN94FNGEV6"
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_DOMINIO",
+  projectId: "TU_PROJECT_ID",
 };
 
-// 🔥 INIT
+// INIT
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 🔥 REGISTER
+// 🔥 API KEY
+const API_KEY = "38b17bc9e1673d2f007c100187416b3ef9982b686014794dedecf94a5e98fa57";
+const API_URL = "https://socialmentorify.com/api/v2";
+
+
+// 🧠 REGISTER
 window.register = async () => {
   try {
     const user = await createUserWithEmailAndPassword(auth, email.value, pass.value);
 
     await setDoc(doc(db, "users", user.user.uid), {
-      email: email.value,
-      saldo: 100
+      email: email.value
     });
 
     alert("Registrado 🔥");
@@ -128,7 +136,8 @@ window.register = async () => {
   }
 };
 
-// 🔥 LOGIN
+
+// 🔐 LOGIN
 window.login = async () => {
   try {
     await signInWithEmailAndPassword(auth, email.value, pass.value);
@@ -137,18 +146,16 @@ window.login = async () => {
   }
 };
 
-// 🔥 DETECTAR LOGIN
-onAuthStateChanged(auth, async (user) => {
+
+// 👀 DETECTAR SESIÓN
+onAuthStateChanged(auth, (user) => {
   if (user) {
     loginBox.style.display = "none";
     panel.style.display = "block";
-
     userEmail.innerText = user.email;
 
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) {
-      saldo.innerText = snap.data().saldo;
-    }
+    cargarSaldo();
+    cargarServicios();
 
   } else {
     loginBox.style.display = "block";
@@ -156,7 +163,70 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// 🔥 LOGOUT
+
+// 💰 SALDO
+async function cargarSaldo(){
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      key: API_KEY,
+      action: "balance"
+    })
+  });
+
+  const data = await res.json();
+  saldoApi.innerText = data.balance;
+}
+
+
+// 📦 SERVICIOS
+async function cargarServicios(){
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      key: API_KEY,
+      action: "services"
+    })
+  });
+
+  const data = await res.json();
+
+  services.innerHTML = "";
+
+  data.slice(0,50).forEach(s=>{
+    let op = document.createElement("option");
+    op.value = s.service;
+    op.text = `${s.name} - $${s.rate}`;
+    services.appendChild(op);
+  });
+}
+
+
+// 🚀 CREAR ORDEN
+window.crearOrden = async () => {
+
+  const res = await fetch(API_URL,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      key: API_KEY,
+      action: "add",
+      service: services.value,
+      link: link.value,
+      quantity: qty.value
+    })
+  });
+
+  const data = await res.json();
+
+  orderResult.innerText = "Orden ID: " + data.order;
+
+};
+
+
+// 🚪 LOGOUT
 window.logout = () => {
   signOut(auth);
 };
