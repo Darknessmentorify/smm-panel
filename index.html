@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>DARK SMM PANEL</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+
+<style>
+body {
+    background: black;
+    color: #00f0ff;
+    font-family: Orbitron;
+    text-align: center;
+}
+
+h1 {
+    text-shadow: 0 0 20px #00f0ff;
+}
+
+.card {
+    background: #020617;
+    border: 1px solid #00f0ff55;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 15px;
+}
+
+input {
+    width: 80%;
+    padding: 8px;
+    margin: 5px;
+    background: black;
+    border: 1px solid #00f0ff;
+    color: #00f0ff;
+}
+
+button {
+    padding: 10px;
+    background: black;
+    border: 1px solid #00f0ff;
+    color: #00f0ff;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #00f0ff;
+    color: black;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎮 DARK SMM PANEL</h1>
+
+<button onclick="cargar()">Cargar Servicios</button>
+
+<div id="servicios"></div>
+
+<script>
+const API_KEY = "PON_AQUI_TU_API_KEY";
+const API_URL = "https://socialmentorify.com/api/v2";
+
+async function cargar() {
+    const res = await fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            key: API_KEY,
+            action: "services"
+        })
+    });
+
+    const data = await res.json();
+    const cont = document.getElementById("servicios");
+    cont.innerHTML = "";
+
+    data.slice(0, 20).forEach(s => {
+        const precio = (parseFloat(s.rate) * 2).toFixed(2);
+
+        cont.innerHTML += `
+        <div class="card">
+            <h3>${s.name}</h3>
+            <p>💰 $${precio}</p>
+            <p>Min: ${s.min} | Max: ${s.max}</p>
+
+            <input placeholder="Link" id="l-${s.service}">
+            <input placeholder="Cantidad" id="q-${s.service}">
+
+            <button onclick="comprar(${s.service})">Comprar</button>
+        </div>
+        `;
+    });
+}
+
+async function comprar(id) {
+    const link = document.getElementById("l-"+id).value;
+    const qty = document.getElementById("q-"+id).value;
+
+    const res = await fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            key: API_KEY,
+            action: "add",
+            service: id,
+            link,
+            quantity: qty
+        })
+    });
+
+    const data = await res.json();
+    alert("Orden: " + (data.order || "error"));
+}
+</script>
+
+</body>
+</html>
