@@ -81,11 +81,9 @@ button:hover {
     box-shadow:0 0 20px #00f0ff55;
 }
 
-/* MENSAJES */
 .msg {
     text-align:center;
     margin-top:20px;
-    font-weight:bold;
 }
 </style>
 </head>
@@ -105,58 +103,20 @@ button:hover {
 </div>
 
 <div class="msg" id="estado"></div>
-
 <div id="servicios"></div>
 
 <script>
-const API_KEY = "TU_API_KEY_AQUI";
-
-/* 🔥 LISTA DE PROXIES (AUTO CAMBIO) */
-const PROXIES = [
-    "https://corsproxy.io/?",
-    "https://api.allorigins.win/raw?url=",
-    "https://proxy.cors.sh/"
-];
-
 let serviciosGlobal = [];
 
-/* 🔥 FUNCION FETCH CON FALLBACK */
-async function fetchConProxy(data) {
-    for (let proxy of PROXIES) {
-        try {
-            const res = await fetch(proxy + "https://socialmentorify.com/api/v2", {
-                method:"POST",
-                headers:{ "Content-Type":"application/json" },
-                body:JSON.stringify(data)
-            });
-
-            const json = await res.json();
-
-            if (json && (Array.isArray(json) || json.order || json.balance)) {
-                return json;
-            }
-
-        } catch(e) {
-            console.log("Proxy falló:", proxy);
-        }
-    }
-
-    throw new Error("Todos los proxies fallaron");
-}
-
-/* 🔥 CARGAR SERVICIOS */
 async function cargar(){
     estado.innerText = "🔥 Cargando servicios...";
 
     try {
-        const data = await fetchConProxy({
-            key:API_KEY,
-            action:"services"
-        });
+        const res = await fetch("/api/services");
+        const data = await res.json();
 
         serviciosGlobal = data;
 
-        // categorías
         let cats = [...new Set(data.map(s=>s.category))];
         categoria.innerHTML = '<option value="">Todas</option>';
         cats.forEach(c=>{
@@ -167,11 +127,10 @@ async function cargar(){
         estado.innerText = "✅ Servicios cargados";
 
     } catch(e) {
-        estado.innerText = "❌ Error: API bloqueada (GitHub limitación)";
+        estado.innerText = "❌ Error cargando servicios";
     }
 }
 
-/* 🎮 RENDER */
 function render(data){
     servicios.innerHTML="";
 
@@ -193,7 +152,6 @@ function render(data){
     });
 }
 
-/* 🔍 FILTRO */
 function filtrar(){
     let texto = buscador.value.toLowerCase();
     let cat = categoria.value;
@@ -206,27 +164,30 @@ function filtrar(){
     render(filtrados);
 }
 
-/* 💰 COMPRAR */
 async function comprar(id){
     let link = document.getElementById("l-"+id).value;
     let qty = document.getElementById("q-"+id).value;
 
     if(!link || !qty) return alert("Completa datos");
 
-    estado.innerText = "⏳ Procesando compra...";
+    estado.innerText = "⏳ Procesando...";
 
     try {
-        const data = await fetchConProxy({
-            key:API_KEY,
-            action:"add",
-            service:id,
-            link,
-            quantity:qty
+        const res = await fetch("/api/order", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({
+                service:id,
+                link,
+                quantity:qty
+            })
         });
+
+        const data = await res.json();
 
         estado.innerText = "✅ Orden creada: " + data.order;
 
-    } catch(e) {
+    } catch(e){
         estado.innerText = "❌ Error al comprar";
     }
 }
