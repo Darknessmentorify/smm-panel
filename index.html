@@ -26,17 +26,15 @@ h1 {
     text-shadow:0 0 20px #00f0ff;
 }
 
-/* CONTROLES */
-.top {
-    display:flex;
-    flex-wrap:wrap;
-    justify-content:center;
-    gap:10px;
-    padding:10px;
+/* LOGIN */
+#loginBox {
+    text-align:center;
+    margin-top:50px;
 }
 
-input, select {
+input {
     padding:10px;
+    margin:5px;
     background:black;
     border:1px solid #00f0ff55;
     color:#00f0ff;
@@ -57,6 +55,20 @@ button {
 button:hover {
     transform:scale(1.05);
     box-shadow:0 0 15px #00f0ff;
+}
+
+/* PANEL */
+#panel {
+    display:none;
+}
+
+/* TOP BAR */
+.top {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    padding:10px;
 }
 
 /* GRID */
@@ -94,7 +106,20 @@ button:hover {
 <h1>🎮 DARK SMM PANEL PRO</h1>
 </header>
 
+<!-- LOGIN -->
+<div id="loginBox">
+<h2>Login / Registro</h2>
+<input id="email" placeholder="Correo">
+<input id="pass" type="password" placeholder="Contraseña"><br>
+<button onclick="register()">Registrarse</button>
+<button onclick="login()">Entrar</button>
+</div>
+
+<!-- PANEL -->
+<div id="panel">
+
 <div class="top">
+<h3>💰 Saldo: $<span id="saldo">0</span></h3>
 <button onclick="cargar()">⚡ Cargar Servicios</button>
 <input id="buscador" placeholder="🔍 Buscar..." oninput="filtrar()">
 <select id="categoria" onchange="filtrar()">
@@ -105,9 +130,52 @@ button:hover {
 <div class="msg" id="estado"></div>
 <div id="servicios"></div>
 
+</div>
+
 <script>
+let user = null;
 let serviciosGlobal = [];
 
+/* REGISTER */
+async function register(){
+  await fetch("/api/register",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      email: email.value,
+      password: pass.value
+    })
+  });
+
+  alert("Registrado 🔥");
+}
+
+/* LOGIN */
+async function login(){
+  const res = await fetch("/api/login",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      email: email.value,
+      password: pass.value
+    })
+  });
+
+  const data = await res.json();
+
+  if(data.error){
+    return alert(data.error);
+  }
+
+  user = data;
+
+  saldo.innerText = data.saldo;
+
+  loginBox.style.display="none";
+  panel.style.display="block";
+}
+
+/* CARGAR SERVICIOS */
 async function cargar(){
     estado.innerText = "🔥 Cargando servicios...";
 
@@ -131,11 +199,12 @@ async function cargar(){
     }
 }
 
+/* RENDER */
 function render(data){
     servicios.innerHTML="";
 
     data.forEach(s=>{
-        let precio = (parseFloat(s.rate)*2).toFixed(2);
+        let precio = parseFloat(s.rate).toFixed(2);
 
         servicios.innerHTML += `
         <div class="card">
@@ -146,12 +215,13 @@ function render(data){
             <input placeholder="Link" id="l-${s.service}">
             <input placeholder="Cantidad" id="q-${s.service}">
 
-            <button onclick="comprar(${s.service})">Comprar</button>
+            <button onclick="comprar(${s.service}, ${precio})">Comprar</button>
         </div>
         `;
     });
 }
 
+/* FILTRO */
 function filtrar(){
     let texto = buscador.value.toLowerCase();
     let cat = categoria.value;
@@ -164,7 +234,8 @@ function filtrar(){
     render(filtrados);
 }
 
-async function comprar(id){
+/* COMPRAR */
+async function comprar(id, precio){
     let link = document.getElementById("l-"+id).value;
     let qty = document.getElementById("q-"+id).value;
 
@@ -172,23 +243,33 @@ async function comprar(id){
 
     estado.innerText = "⏳ Procesando...";
 
+    const total = precio * qty;
+
     try {
-        const res = await fetch("/api/order", {
+        const res = await fetch("/api/order",{
             method:"POST",
             headers:{ "Content-Type":"application/json" },
             body: JSON.stringify({
+                email: user.email,
                 service:id,
                 link,
-                quantity:qty
+                quantity:qty,
+                price: total
             })
         });
 
         const data = await res.json();
 
-        estado.innerText = "✅ Orden creada: " + data.order;
+        if(data.error){
+            return estado.innerText = "❌ " + data.error;
+        }
+
+        saldo.innerText = data.saldo;
+
+        estado.innerText = "✅ Orden creada 🔥";
 
     } catch(e){
-        estado.innerText = "❌ Error al comprar";
+        estado.innerText = "❌ Error";
     }
 }
 </script>
